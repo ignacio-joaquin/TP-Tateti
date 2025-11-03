@@ -107,7 +107,7 @@ jugarTurno tablero jugador = do
     let columnas = length (head tablero)
     putStrLn "\n=== TABLERO ACTUAL ==="
     printearTablero columnas tablero
-    putStr $ "Jugador " ++ [jugador] ++ ", ingresa el número de columna (1-" ++ show columnas ++ "): "
+    putStr $ "Jugador " ++ [jugador] ++ ", ingresa el número de columna (1-" ++ show columnas ++ "): \n"
     colStr <- getLine
     
     let colParseada = parseInput parserColumna colStr
