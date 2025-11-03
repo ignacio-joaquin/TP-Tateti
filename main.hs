@@ -61,7 +61,6 @@ printearFila n (x:xs) = do
 -- Construcción del tablero
 construirTablero :: IO Tablero
 construirTablero = do
-    putStrLn "=== 3 EN LÍNEA ==="
     putStrLn "Ingresa las medidas del tablero (ej: 'Filas: 3 Columnas: 4'):"
     input <- getLine
     let resultado = parseInput parserTablero input
@@ -110,27 +109,32 @@ jugarTurno tablero jugador = do
     let columnas = length (head tablero)
     putStrLn "\n=== TABLERO ACTUAL ==="
     printearTablero columnas tablero
-    putStr $ "Jugador " ++ [jugador] ++ ", ingresa el número de columna (1-" ++ show columnas ++ "): \n"
+    putStr $ "Jugador " ++ [jugador] ++ ", ingresa el número de columna (1-" ++ show columnas ++ ") o ingrese "menu" para volver al menu: \n"
     colStr <- getLine
-    
-    let colParseada = parseInput parserColumna colStr
-    if isJust colParseada
+    if colStr == "menu" || colStr == "MENU"
         then do
-            let Just col = colParseada
-            let nuevoTablero = dropFicha tablero col jugador
-            if isJust nuevoTablero
-                then do
-                    let Just tab = nuevoTablero
-                    return tab
-                else do
-                    putStrLn "Columna inválida o llena! Intenta otra."
-                    jugarTurno tablero jugador
+            putStrLn "Volviendo al menú principal..."
+            menu
+            return tablero
         else do
-            putStrLn "Número inválido! Ingresa un número válido."
-            jugarTurno tablero jugador
-  where
-    isJust (Just _) = True
-    isJust Nothing = False
+        let colParseada = parseInput parserColumna colStr
+        if isJust colParseada
+            then do
+                let Just col = colParseada
+                let nuevoTablero = dropFicha tablero col jugador
+                if isJust nuevoTablero
+                    then do
+                        let Just tab = nuevoTablero
+                        return tab
+                    else do
+                        putStrLn "Columna inválida o llena! Intenta otra."
+                        jugarTurno tablero jugador
+            else do
+                putStrLn "Número inválido! Ingresa un número válido."
+                jugarTurno tablero jugador
+      where
+        isJust (Just _) = True
+        isJust Nothing = False
 
 dropFicha :: Tablero -> Int -> Char -> Maybe Tablero
 dropFicha tablero col ficha
@@ -220,9 +224,25 @@ iniciarJuego = do
     tablero <- construirTablero
     juegoLoop tablero 'X'
 
+menu :: IO()
+menu = do
+        clearScreen
+        putStrLn "=== 3 EN LÍNEA ==="
+        putStrLn "1. Nuevo juego"
+        putStrLn "2. Salir"
+        putStrLn "Selecciona una opción (1 o 2):"
+        opcion <- getLine
+        case opcion of
+            "1" -> do
+                putStrLn "Iniciando nuevo juego..."
+                iniciarJuego
+            "2" -> putStrLn "¡Gracias por jugar!"
+            _ -> do
+                putStrLn "Opción inválida, intente nuevamente."
+                menu 
 -- Función principal
 main :: IO ()
-main = iniciarJuego
+main = menu
 
 -- Función auxiliar para Maybe con <|>
 orElse :: Maybe a -> Maybe a -> Maybe a
