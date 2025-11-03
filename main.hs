@@ -42,7 +42,7 @@ printearBordeVertical n = do
     printearBordeVertical (n-1)
 
 printearTablero :: Int -> Tablero -> IO()
-printearTablero _ [] = putStrLn ""
+printearTablero n [] = printearBordeVertical n
 printearTablero n (x:xs) = do 
     printearBordeVertical n
     printearFila n x
