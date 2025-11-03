@@ -3,6 +3,8 @@ import Data.Char
 import Control.Monad
 import Control.Applicative hiding (many)
 import System.Exit
+import Control.Applicative hiding (many)
+import System.Console.ANSI (clearScreen)
 
 -- Tipos de datos
 type Fila = [Char]
@@ -81,6 +83,7 @@ construirTableroVacio filas columnas = replicate filas (replicate columnas ' ')
 -- Lógica del juego
 juegoLoop :: Tablero -> Char -> IO ()
 juegoLoop tablero jugador = do
+    clearScreen
     let columnas = length (head tablero)
     putStrLn $ "\nTurno del jugador: " ++ [jugador]
     
