@@ -28,15 +28,17 @@ parserTablero = do
         then return (filas, columnas)
         else failure
 
--- Función para parsear entrada
 parseInput :: Parser a -> String -> Maybe a
 parseInput p input = 
-    case parse (p <* eof) input of
+    case parse parser input of
         [(result, _)] -> Just result
         _ -> Nothing
-  where
-    eof = P (\inp -> if null inp then [((), "")] else [])
-
+    where
+        parser = do
+            result <- p
+            eof
+            return result
+        eof = P (\inp -> if null inp then [((), "")] else [])
 -- Impresión del tablero
 printearBordeVertical :: Int -> IO()
 printearBordeVertical 1 = putStr "-----\n"
