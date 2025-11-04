@@ -10,8 +10,9 @@ import System.Console.ANSI (clearScreen)
 type Fila = [Char]
 type Tablero = [Fila]
 type Posicion = (Int, Int)
+type ResultadoPartida = (Int, Char)  -- (Número de partida, Ganador)
+type Estado = [ResultadoPartida]     -- Lista de resultados
 
--- Parsers para entrada del usuario
 parserColumna :: Parser Int
 parserColumna = do
     n <- natural
@@ -61,6 +62,7 @@ printearFila n (x:xs) = do
 -- Construcción del tablero
 construirTablero :: IO Tablero
 construirTablero = do
+    putStrLn "=== 3 EN LÍNEA ==="
     putStrLn "Ingresa las medidas del tablero (ej: 'Filas: 3 Columnas: 4'):"
     input <- getLine
     let resultado = parseInput parserTablero input
@@ -79,14 +81,21 @@ construirTablero = do
 construirTableroVacio :: Int -> Int -> Tablero
 construirTableroVacio filas columnas = replicate filas (replicate columnas ' ')
 
--- Lógica del juego
-juegoLoop :: Tablero -> Char -> IO ()
-juegoLoop tablero jugador = do
+-- Función para verificar si el tablero está lleno
+tableroLleno :: Tablero -> Bool
+tableroLleno = all (notElem ' ')
+-- Explicación:
+-- notElem ' ' fila: Verifica que no haya espacios en una fila
+-- all: Verifica que todas las filas cumplan esta condición
+
+-- Lógica del juego (ahora recibe y retorna el estado)
+juegoLoop :: Estado -> Tablero -> Char -> IO Estado
+juegoLoop estado tablero jugador = do
     clearScreen
     let columnas = length (head tablero)
     putStrLn $ "\nTurno del jugador: " ++ [jugador]
     
-    nuevoTablero <- jugarTurno tablero jugador
+    nuevoTablero <- jugarTurno estado tablero jugador
     
     -- Verificar si hay ganador
     let ganador = verificarVictoria nuevoTablero 'X' <|> verificarVictoria nuevoTablero 'O'
@@ -96,25 +105,40 @@ juegoLoop tablero jugador = do
             printearTablero columnas nuevoTablero
             let Just g = ganador
             putStrLn $ "¡Jugador " ++ [g] ++ " gana!"
-            reiniciarJuego
-        else do
-            let siguienteJugador = if jugador == 'X' then 'O' else 'X'
-            juegoLoop nuevoTablero siguienteJugador
+            -- Crear nuevo resultado y retornar estado actualizado
+            let numeroPartida = length estado + 1
+            let nuevoResultado = (numeroPartida, g)
+            let nuevoEstado = nuevoResultado : estado
+            reiniciarJuego nuevoEstado
+        -- Verificar si hay empate
+        else if tableroLleno nuevoTablero
+            then do
+                putStrLn "\n=== TABLERO FINAL ==="
+                printearTablero columnas nuevoTablero
+                putStrLn "¡EMPATE! No hay movimientos disponibles."
+                -- Crear nuevo resultado de empate y retornar estado actualizado
+                let numeroPartida = length estado + 1
+                let nuevoResultado = (numeroPartida, 'E')  -- 'E' para empate
+                let nuevoEstado = nuevoResultado : estado
+                reiniciarJuego nuevoEstado
+            else do
+                let siguienteJugador = if jugador == 'X' then 'O' else 'X'
+                juegoLoop estado nuevoTablero siguienteJugador
   where
     isJust (Just _) = True
     isJust Nothing = False
 
-jugarTurno :: Tablero -> Char -> IO Tablero
-jugarTurno tablero jugador = do
+jugarTurno :: Estado -> Tablero -> Char -> IO Tablero
+jugarTurno estado tablero jugador = do
     let columnas = length (head tablero)
     putStrLn "\n=== TABLERO ACTUAL ==="
     printearTablero columnas tablero
-    putStr $ "Jugador " ++ [jugador] ++ ", ingresa el número de columna (1-" ++ show columnas ++ ") o ingrese "menu" para volver al menu: \n"
+    putStr $ "Jugador " ++ [jugador] ++ ", ingresa el número de columna (1-" ++ show columnas ++ ") o ingrese \"menu\" para volver al menu: \n"
     colStr <- getLine
     if colStr == "menu" || colStr == "MENU"
         then do
             putStrLn "Volviendo al menú principal..."
-            menu
+            _ <- menu estado  -- Ignoramos el nuevo estado porque no cambió
             return tablero
         else do
         let colParseada = parseInput parserColumna colStr
@@ -128,10 +152,10 @@ jugarTurno tablero jugador = do
                         return tab
                     else do
                         putStrLn "Columna inválida o llena! Intenta otra."
-                        jugarTurno tablero jugador
+                        jugarTurno estado tablero jugador
             else do
                 putStrLn "Número inválido! Ingresa un número válido."
-                jugarTurno tablero jugador
+                jugarTurno estado tablero jugador
       where
         isJust (Just _) = True
         isJust Nothing = False
@@ -203,46 +227,83 @@ verificarDiagonalesAsc tablero jugador =
         all (\i -> tablero !! (fila+i) !! (col+2-i) == jugador) [0..2])
     [(f, c) | f <- [0..length tablero - 3], c <- [0..length (head tablero) - 3]]
 
--- Reiniciar el juego usando pattern matching simple
-reiniciarJuego :: IO ()
-reiniciarJuego = do
-    putStrLn "\n¿Quieres jugar otra vez? (s/n): "
+-- Reiniciar el juego (ahora recibe y retorna estado)
+reiniciarJuego :: Estado -> IO Estado
+reiniciarJuego estado = do
+    putStrLn "\n¿Quieres volver al menu? (s/n): "
     respuesta <- getLine
     if respuesta == "s" 
         then do
             putStrLn "\n" 
-            iniciarJuego
+            menu estado
         else if respuesta == "n"
-            then putStrLn "¡Gracias por jugar!"
+            then do
+                putStrLn "¡Gracias por jugar!"
+                return estado
             else do
                 putStrLn "Respuesta inválida. Ingresa 's' o 'n'."
-                reiniciarJuego
+                reiniciarJuego estado
 
--- Iniciar juego completo
-iniciarJuego :: IO ()
-iniciarJuego = do
+-- Iniciar juego completo (ahora recibe y retorna estado)
+iniciarJuego :: Estado -> IO Estado
+iniciarJuego estado = do
     tablero <- construirTablero
-    juegoLoop tablero 'X'
+    juegoLoop estado tablero 'X'
 
-menu :: IO()
-menu = do
-        clearScreen
-        putStrLn "=== 3 EN LÍNEA ==="
-        putStrLn "1. Nuevo juego"
-        putStrLn "2. Salir"
-        putStrLn "Selecciona una opción (1 o 2):"
-        opcion <- getLine
-        case opcion of
-            "1" -> do
-                putStrLn "Iniciando nuevo juego..."
-                iniciarJuego
-            "2" -> putStrLn "¡Gracias por jugar!"
-            _ -> do
-                putStrLn "Opción inválida, intente nuevamente."
-                menu 
+-- Función para mostrar últimos 5 resultados
+mostrarUltimosResultados :: Estado -> IO Estado
+mostrarUltimosResultados estado = do
+    clearScreen
+    putStrLn "=== ÚLTIMOS 5 RESULTADOS ==="
+    putStrLn "Partida | Resultado"
+    putStrLn "-------------------"
+    
+    let ultimos5 = take 5 estado
+    
+    if null ultimos5
+        then putStrLn "No hay resultados disponibles."
+        else mapM_ imprimirResultado (reverse ultimos5)
+    
+    putStrLn "\nPresiona Enter para volver al menú..."
+    _ <- getLine
+    return estado  -- Retornamos el mismo estado (no cambió)
+  where
+    imprimirResultado (num, resultado) = 
+        case resultado of
+            'E' -> putStrLn $ "   " ++ show num ++ "    |   EMPATE"
+            _   -> putStrLn $ "   " ++ show num ++ "    |   Ganador " ++ [resultado]
+
+-- Menú principal (ahora recibe y retorna estado)
+menu :: Estado -> IO Estado
+menu estado = do
+    clearScreen
+    putStrLn "=== 3 EN LÍNEA ==="
+    putStrLn "1. Nuevo juego"
+    putStrLn "2. Ver últimos resultados"
+    putStrLn "3. Salir"
+    putStrLn "Selecciona una opción (1, 2 o 3):"
+    opcion <- getLine
+    case opcion of
+        "1" -> do
+            putStrLn "Iniciando nuevo juego..."
+            iniciarJuego estado
+        "2" -> do
+            nuevoEstado <- mostrarUltimosResultados estado
+            menu nuevoEstado  -- Continuamos con el mismo estado
+        "3" -> do
+            putStrLn "¡Gracias por jugar!"
+            exitSuccess
+        _ -> do
+            putStrLn "Opción inválida, intente nuevamente."
+            menu estado
+
 -- Función principal
 main :: IO ()
-main = menu
+main = do
+    -- Estado inicial vacío
+    let estadoInicial = [] :: Estado
+    _ <- menu estadoInicial
+    return ()
 
 -- Función auxiliar para Maybe con <|>
 orElse :: Maybe a -> Maybe a -> Maybe a
